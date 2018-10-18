@@ -1,14 +1,28 @@
 ﻿
 @model TransactionAnalyticsApp.Models.ViewModels.TransactionsViewModel
+    
+@using System.Globalization;
+@using System.Threading;
+
+@{ 
+    CultureInfo currentCulture = Thread.CurrentThread.CurrentCulture;
+    CultureInfo newCulture = new CultureInfo(currentCulture.Name);
+    newCulture.NumberFormat.CurrencyNegativePattern = 1;
+    Thread.CurrentThread.CurrentCulture = newCulture;
+}
 <!DOCTYPE html>
 
 <html>
 <head>
     <meta name="viewport" content="width=device-width" />
     <title>Bank Transaction Analytics App</title>
-    <link href="~/Content/bootstrap.min.css" rel="stylesheet" />
+    @*<link href="~/Content/bootstrap.min.css" rel="stylesheet" />
     <script src="~/Scripts/jquery-3.0.0.min.js"></script>
-    <script src="~/Scripts/bootstrap.min.js"></script>
+    <script src="~/Scripts/bootstrap.min.js"></script>*@
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
 </head>
 <body>
     @if (ViewBag.Message != "")
@@ -29,12 +43,25 @@
         }
         <br />
         <br />
-        <table class="table table-sm">
+        <h4>
+            Total Deposits: <span class="text-success">@Model.TotalDepost.ToString("C")</span><br />
+            Total Spent: <span class="text-danger">@Model.TotalSpent.ToString("C")</span>
+        </h4>
+        <label for="startingAmount">Starting Amount</label>
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <span class="input-group-text">$</span>
+            </div>
+            <input type="number" name="startingAmount" id="startingAmount" class="form-control" value="0" />
+        </div>
+        <br />
+        <table class="table table-sm table-bordered" id="transactionResults">
             <thead class="thead-dark">
                 <tr>
                     <th>Date</th>
-                    <th>Description</th>
                     <th>Amount</th>
+                    <th>Description</th>
+                    <th>Amount Left</th>
                 </tr>
             </thead>
             <tbody>
@@ -44,32 +71,36 @@
                     {
                         <tr class="table-success">
                             <td>@transaction.Date.ToShortDateString()</td>
+                            <td>@transaction.Amount.ToString("C")</td>
                             <td>@transaction.Description</td>
-                            <td>@transaction.Amount</td>
+                            <td></td>
                         </tr>
                     }
                     else if (transaction.Amount < -500)
                     {
                         <tr class="table-danger">
                             <td>@transaction.Date.ToShortDateString()</td>
+                            <td>@transaction.Amount.ToString("C")</td>
                             <td>@transaction.Description</td>
-                            <td>@transaction.Amount</td>
+                            <td></td>
                         </tr>
                     }
                     else if (transaction.Amount < -200)
                     {
                         <tr class="table-warning">
                             <td>@transaction.Date.ToShortDateString()</td>
+                            <td>@transaction.Amount.ToString("C")</td>
                             <td>@transaction.Description</td>
-                            <td>@transaction.Amount</td>
+                            <td></td>
                         </tr>
                     }
                     else
                     {
                         <tr>
                             <td>@transaction.Date.ToShortDateString()</td>
+                            <td>@transaction.Amount.ToString("C")</td>
                             <td>@transaction.Description</td>
-                            <td>@transaction.Amount</td>
+                            <td></td>
                         </tr>
                     }
 
@@ -77,11 +108,70 @@
             </tbody>
         </table>
 
+        <h4>Total Left: <span class="amount-left"></span></h4>
+
     </div>
     <script type="text/javascript">
+        // TODO: Clean up and move to seperate js file
         $(document).ready(function () {
-
+            UpdateRemainingAmount();
+            $("#startingAmount").change(UpdateRemainingAmount);
         });
+
+        function UpdateRemainingAmount() {
+            var startingAmount = parseFloat($("#startingAmount").val().toString());
+
+            $("#transactionResults tbody tr").each(function (index) {
+                var $self = $(this);
+                var previousVal = 0.0;
+                
+                if (index == 0) {
+                    previousVal = startingAmount;
+                }
+                else {
+                    previousVal = GetFloatValue($self.prev().find("td:nth-of-type(4)").text()); //get value from the element
+                }
+
+                var amountLeft = previousVal + GetFloatValue($self.find("td:nth-of-type(2)").text());
+                $self.find("td:nth-of-type(4)").text(FormatFloat(amountLeft));
+
+                if (amountLeft < 0) {
+                    $self.find("td:nth-of-type(4)").addClass("text-danger");
+                }
+                else {
+                    $self.find("td:nth-of-type(4)").removeClass("text-danger");
+                }
+            });
+
+            var finalLeft = $("#transactionResults tbody tr:last-of-type td:nth-of-type(4)").text();
+            $(".amount-left").text(finalLeft);
+        }
+
+        function GetFloatValue(text) {
+            var result = text.replace('$', '').replace(',', '');
+            //if (result.substring(0, 1) == '(') {
+            //    result.replace(/\(|\)/g, '');
+            //    console.log("negative formated: " + result);
+            //    result = "-" + result;
+            //}
+
+            //console.log("result: " + result);
+
+            return parseFloat(result);
+        }
+
+        function FormatFloat(value) {
+            var result = value.toFixed(2).toString();
+
+            if (result.substring(0, 1) == '-') {
+                result = "-$" + result.replace('-', '');
+            }
+            else {
+                result = "$" + result;
+            }
+
+            return result;
+        }
     </script>
 </body>
 </html>

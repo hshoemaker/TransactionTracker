@@ -9,6 +9,8 @@ namespace TransactionAnalyticsApp.Models.ViewModels
     {
         // TODO: Gather more info about transactions
         public List<Transaction> Transactions { get; set; }
+        public double TotalDepost { get; set; }
+        public double TotalSpent { get; set; }
 
         public TransactionsViewModel()
         {

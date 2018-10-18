@@ -1,8 +1,10 @@
 ﻿using CsvHelper;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Web;
 using System.Web.Mvc;
 using TransactionAnalyticsApp.Models;
@@ -39,6 +41,8 @@ namespace TransactionAnalyticsApp.Controllers
                     file.SaveAs(path);
 
                     model.Transactions = ConvertData(path);
+                    model.TotalDepost = model.Transactions.Where(x => x.Amount > 0).Sum(x => x.Amount);
+                    model.TotalSpent = model.Transactions.Where(x => x.Amount < 0).Sum(x => x.Amount);
 
                     System.IO.File.Delete(path);
 
@@ -55,6 +59,14 @@ namespace TransactionAnalyticsApp.Controllers
             }
 
             return View(model);
+        }
+
+        private double GetTotalDeposits(List<Transaction> transactions)
+        {
+            var positiveTransactions = transactions.Where(x => x.Amount > 0).ToList();
+            double totalAmount = positiveTransactions.Sum(x => x.Amount);
+
+            return totalAmount;
         }
 
         private List<Transaction> ConvertData(string path)
