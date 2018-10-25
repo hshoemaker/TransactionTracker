@@ -15,8 +15,6 @@ namespace TransactionAnalyticsApp.Controllers
     public class HomeController : Controller
     {
         // GET: Home
-        // TODO: Calculate the amount left after each transaction
-        // TODO: Make it change pages (views) after upload
         // TODO: Add filtering for the table
         // TODO: Add useful charts and tables from data
         // TODO: Adjust csv reader to allow from different banks
@@ -113,6 +111,16 @@ namespace TransactionAnalyticsApp.Controllers
                         transation.Description = csv[1];
                         string amount = csv[2].ToString();
                         transation.Amount = double.Parse(amount);
+
+                        if (transation.Amount > 0)
+                        {
+                            transation.Category = Categories.Paycheck;
+                        }
+                        else
+                        {
+                            transation.Category = Categories.None;
+                        }
+
                         transactions.Add(transation);
                     }
                 }
